@@ -30,7 +30,7 @@ image = (
     # The dependencies of pyproject.toml, at the versions of uv.lock; no dependency group (dev, examples).
     .uv_sync(str(ROOT), extra_options="--no-default-groups")
     # Only the app: the tutorial and the examples are for your machine.
-    .add_local_dir(ROOT / "app", "/srv/app")
+    .add_local_dir(ROOT / "app", "/srv/app", ignore=["**/__pycache__"])
 )
 
 app = modal.App("restate-template-python", image=image)
