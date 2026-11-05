@@ -1,37 +1,38 @@
 # Restate on Modal: Python
 
-A [Restate](https://restate.dev) app in Python that runs on [Modal](https://modal.com), plus
-a tutorial, examples, and pointers to the libraries you can build on. Run every command below from this directory,
-`python/`. The TypeScript version is in [`../typescript`](../typescript).
+A [Restate](https://restate.dev) app in Python that runs on [Modal](https://modal.com),
+plus pointers to the libraries you can build on. Run every command below from this
+directory, `python/`. The TypeScript version is in [`../typescript`](../typescript).
 
 ## A quick outline of the relevant resources
 
 - **[Connecting your code to Restate & Modal](#connecting-your-code-to-restate--modal)**:
   run locally, connect to Restate Cloud, deploy on Modal.
-- **[Agents](#agents)** (`restate.agents`): durable agents on session objects, with the
-  OpenAI Agents SDK, LangGraph, Pydantic AI and Google ADK, or a loop of your own.
+- **[Agent SDK](#agent-sdk)** (`restate.agents`): a high-level agent SDK on session
+  objects, with the OpenAI Agents SDK, LangGraph, Pydantic AI and Google ADK.
 - **[Session Objects](#session-objects)** (`restate.sessions`): the Cloudflare Durable
   Objects / celld-like construct, with a SQLite database per key.
+- **[Journaled agents](#journaled-agents)** (`restate.ext`): the same frameworks made durable
+  inside plain Restate handlers, built on journaling (not session objects).
+
+All of these are part of the Restate Python SDK
+([`restate-sdk`](https://pypi.org/project/restate-sdk/)), and they are all Restate services,
+so they mix freely and call each other with exactly-once RPC.
+
+## Connecting your code to Restate & Modal
+
+You need Python 3.13 and [uv](https://docs.astral.sh/uv/); `uv sync` installs everything
+else. The demo app in [`app/__main__.py`](app/__main__.py) is a template / hello-world
+example: a `notes` session object, and an `assistant` agent that keeps them (it needs
+`OPENAI_API_KEY`).
 
 ```
 python/
-├── app/__main__.py   the app, deployed on Modal: notes per user, and an assistant that keeps them
+├── app/__main__.py   the app, deployed on Modal: `app = restate.app([...])`, then restate.serve
 ├── tutorial/         a wallet per user, from a database per key to agents: to read and copy from
 ├── examples/         complete examples, each ending with an ASGI app, `app`
 └── modal/on_modal.py the Modal app: one always-on container that connects app/ to Restate Cloud
 ```
-
-All of these are part of the Restate Python SDK
-([`restate-sdk`](https://pypi.org/project/restate-sdk/)), and they are Restate services, so
-they mix freely with its services, virtual objects and workflows, and call each other with
-exactly-once RPC.
-
-## Connecting your code to Restate & Modal
-
-You need Python 3.13 and [uv](https://docs.astral.sh/uv/). The app in
-[`app/__main__.py`](app/__main__.py) is a template / hello-world example: a `notes` session
-object, and an `assistant` agent that takes notes through it (it needs `OPENAI_API_KEY`). It
-defines the ASGI app, `app`, and ends with `restate.serve(app)`.
 
 ### Local Restate Server (OSS, for development)
 
@@ -42,8 +43,7 @@ npx @restatedev/restate-server@1.8.1              # Restate, in another terminal
 npx @restatedev/restate@1.8.1 deployments register http://localhost:9080
 curl localhost:8080/notes/alice/add --json '"Buy milk"'
 curl localhost:8080/notes/alice/list
-curl localhost:8080/assistant/alice/chat -d 'Remind me to call the bank.'
-uv run python -m restate.agents chat assistant/alice   # or chat in the terminal, and watch its tool calls
+uv run python -m restate.agents chat assistant/alice   # chat with the assistant, and watch its tool calls
 ```
 
 Binaries and Docker images: [Restate 1.8.1](https://github.com/restatedev/restate/releases/tag/v1.8.1).
@@ -64,7 +64,8 @@ RESTATE_CONNECT_KEY=… uv run python -m restate connect app.__main__:app --name
 ```
 
 Once, [register `connect://notes-python-v1`](https://cloud.restate.dev/to/overview?register-deployment=connect://notes-python-v1)
-in the Cloud UI, or with the CLI, once it is signed in to your environment:
+in the Cloud UI (the app prints this link too), or with the CLI, once it is signed in to your
+environment:
 
 ```sh
 npx @restatedev/restate@1.8.1-hotfix.2 cloud login
@@ -90,7 +91,7 @@ async with restate.create_client() as client:  # reads RESTATE_INGRESS_KEY
 
 [`modal/on_modal.py`](modal/on_modal.py) builds the image on Modal and runs
 `python -m restate connect app.__main__:app` in one always-on container, which connects to
-Restate Cloud[^push]. Only `app/` goes into the image. Your keys come from a Modal secret.
+Restate Cloud[^push]. Only `app/` goes into the image. Your keys come from a Modal secret, and
 `modal` is a dev dependency of this project, so `uv run modal` runs it:
 
 ```sh
@@ -111,13 +112,15 @@ installs the `[project] dependencies` of [`pyproject.toml`](pyproject.toml) at t
     investigate, and to save you the friction, your code connects to Restate Cloud instead
     of Restate Cloud pushing to Modal. Push is what we want in the future.
 
-## Agents
+## Agent SDK
 
-`restate.agents` runs agents of the OpenAI Agents SDK, LangGraph, Pydantic AI or Google ADK
-on session objects. Each agent is a session object, with each conversation (key) in its own
-database: a crash, a restart, or a person who takes a day to approve something changes
-nothing, and each tool call is made once. Tools can be Restate itself: a call to a service, a
-one-way send with a delay, a workflow, another agent, or a wait for a signal.
+`restate.agents` shows how to structure a high-level agent SDK on session objects. It adds
+integrations for the OpenAI Agents SDK, LangGraph, Pydantic AI and Google ADK, and you can
+also write an agent loop of your own. Each agent is a session object with its conversation
+in its own database: a crash, a restart, or a person who takes a day to approve something
+changes nothing, and each tool call is made once. Tools can be Restate itself (a call to a
+service, a send with a delay, a workflow, another agent, a wait for a signal), and you can
+still write workflows as plain Restate handlers and call other services.
 
 ```python
 from restate.agents import openai, tool
@@ -132,44 +135,42 @@ async def get_weather(city: str) -> str:
 assistant = openai.agent("assistant", system="Answer briefly.", tools=[get_weather])
 ```
 
-To serve agents, add them to `restate.app([...])` in [`app/__main__.py`](app/__main__.py) (each brings
-along what it needs, the `signals` object), and put your model's API key (`OPENAI_API_KEY`) in the
-environment, and on Modal in its secret. Chat with one with
-`curl localhost:8080/assistant/alice/chat -d 'What is the weather in Lisbon?'`, or from a
-terminal with the SDK's chat client, `uv run python -m restate.agents chat assistant/alice`:
-it shows each tool call as it happens, and answers an agent's waits (`/pending`,
-`/signal <name> <value>`). With `RESTATE_INGRESS_KEY` set, it talks to Restate Cloud. The
-OpenAI Agents SDK is installed already (`restate-sdk[serve,openai]` in
-[`pyproject.toml`](pyproject.toml)); for another framework, add its extra (`langgraph`,
+To serve agents, add them to `restate.app([...])` in [`app/__main__.py`](app/__main__.py).
+Each brings along what it needs (the `signals` object its waits use). Put your model's API key
+(`OPENAI_API_KEY`) in the environment, and on Modal in its secret. Chat with
+`curl localhost:8080/assistant/alice/chat -d 'Hi'`, or from a terminal with
+`uv run python -m restate.agents chat assistant/alice`. The chat client shows each tool call
+as it happens, answers an agent's waits (`/pending`, `/signal <name> <value>`), and talks to
+Restate Cloud when `RESTATE_INGRESS_KEY` is set.
+
+The OpenAI Agents SDK is installed already (`restate-sdk[serve,openai]` in
+[`pyproject.toml`](pyproject.toml)). For another framework, add its extra (`langgraph`,
 `pydantic-ai`, `adk`) and its model provider's package, then `uv lock`.
 
-The tutorial's agents (lessons 09–16, below) are a walk through all of this, on the OpenAI
-Agents SDK.
+### Examples
 
-**Examples:** [`examples/`](examples), each a complete module that ends with an ASGI app,
-`app`. Serve one with the SDK's `python -m restate serve` (on port 9080), register it with
-your local Restate server (`--force` when you switch from another), and try the requests in
-its docstring:
+[`examples/`](examples): complete agents, each a module that ends with an ASGI app, `app`.
+Serve one with the SDK's `python -m restate serve`, register it with your local Restate
+server (`--force` when you switch from another), and try the requests in its docstring:
 
 ```sh
 uv run python -m restate serve examples.chat:app
 npx @restatedev/restate@1.8.1 deployments register --force --yes http://localhost:9080
 ```
 
-
-| Example                                          | What it shows                                                                  |
-| ------------------------------------------------ | ------------------------------------------------------------------------------ |
-| [`chat`](examples/chat.py)                       | A chat agent on the OpenAI Agents SDK, with a tool                             |
-| [`langgraph_agent`](examples/langgraph_agent.py) | The same agent on LangGraph                                                    |
-| [`models`](examples/models.py)                   | LangChain chat models you set up yourself: a gateway, no client retries        |
-| [`memory`](examples/memory.py)                   | An agent with a table of its own: tools that write `ctx.db`, and a view        |
-| [`support`](examples/support.py)                 | Restate as tools: a service, a person's approval (a signal), and a workflow    |
+| Example                                          | What it shows                                                               |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| [`chat`](examples/chat.py)                       | A chat agent on the OpenAI Agents SDK, with a tool                          |
+| [`langgraph_agent`](examples/langgraph_agent.py) | The same agent on LangGraph                                                 |
+| [`models`](examples/models.py)                   | LangChain chat models you set up yourself: a gateway, no client retries     |
+| [`memory`](examples/memory.py)                   | An agent with a table of its own: tools that write `ctx.db`, and a view     |
+| [`support`](examples/support.py)                 | Restate as tools: a service, a person's approval (a signal), and a workflow |
 
 They need `OPENAI_API_KEY`. LangGraph and `langchain-openai` are in the `examples` group of
-`pyproject.toml`, which `uv sync` installs and the Modal image doesn't. The app of any of them
-connects to Restate Cloud too: `uv run python -m restate connect examples.chat:app --name chat-python-v1`.
+`pyproject.toml`, which `uv sync` installs and the Modal image doesn't. Any example connects
+to Restate Cloud too: `uv run python -m restate connect examples.chat:app --name chat-python-v1`.
 
-More examples, one per file: [`examples-agents`](https://github.com/restatedev/sdk-python/tree/main/examples-agents)
+More, one per file: [`examples-agents`](https://github.com/restatedev/sdk-python/tree/main/examples-agents)
 of the Python SDK, from a basic agent per framework to agents whose tools are Restate itself,
 a person in the loop, teams of agents on different frameworks, and an agent loop of your own.
 
@@ -178,7 +179,7 @@ a person in the loop, teams of agents on different frameworks, and an agent loop
 A session object is a virtual object with `migrations` and a database, `ctx.db`: the
 Cloudflare Durable Objects / celld-like API. Each key (`alice`, `bob`, …) gets its own
 SQLite-compatible database of up to 10 GiB, stored in Restate's state, so there is no separate
-database to run. This is what agents are built on.
+database to run. This is what powers the Agent SDK.
 
 ```python
 from restate import sessions
@@ -208,8 +209,35 @@ async def list_notes(ctx: sessions.ViewContext) -> list[str]:
 - No journal replay: after a failure the handler runs again from the start, so make it safe
   to run twice (for example, record `ctx.request.id` with its writes).
 
+**Dependency:** part of [`restate-sdk`](https://pypi.org/project/restate-sdk/), from
+[restatedev/sdk-python](https://github.com/restatedev/sdk-python). Docs: the docstrings of
+`restate.sessions` and `restate.agents`, which an editor shows on hover.
+
 **Tutorial:** [`tutorial/`](tutorial), one idea per file: a database per key (01–04),
 changes that happen once (05–08), agents (09–15), and an `Agent` of your own with handoffs
 (16). The lessons are for reading and copying: to try one, copy it into
-[`app/__main__.py`](app/__main__.py) and add its objects to `restate.app([...])` there. Lessons 09–16
-need `OPENAI_API_KEY`.
+[`app/__main__.py`](app/__main__.py) and add its objects to `restate.app([...])` there.
+Lessons 09–16 need `OPENAI_API_KEY`.
+
+## Journaled agents
+
+`restate.ext` makes the same frameworks durable inside plain Restate services, virtual
+objects and workflows: the OpenAI Agents SDK (`restate.ext.openai`), LangChain
+(`restate.ext.langchain`), Pydantic AI (`restate.ext.pydantic`) and Google ADK
+(`restate.ext.adk`). Model calls, tool results and approvals are journaled, and on recovery
+Restate replays the journal, skipping completed steps. It does not use session objects.
+
+Pick it to add durability to an agent you run in your own handlers, next to other journaled
+steps. Pick the [Agent SDK](#agent-sdk) for a ready-made agent per key, whose conversation
+lives in its database, with handlers to chat, read the conversation, watch its progress and
+stop a turn.
+
+Start from the per-framework templates and the tour of agents in
+[restatedev/ai-examples](https://github.com/restatedev/ai-examples): `openai-agents`,
+`langchain-python`, `pydantic-ai` and `google-adk`, plus `python-restate-only` for an agent
+loop on plain Restate.
+
+To build your own harness, `restate.agents.internal` has the building blocks of the Agent
+SDK's loop (`answer_once`, `Conversation`, `run_tool`). [restatedev/agent](https://github.com/restatedev/agent)
+is an even more detailed reference, in TypeScript: steerable, concurrent agents with
+approvals, sandboxed code, sub-agents, schedules and memory.
