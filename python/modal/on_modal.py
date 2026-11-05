@@ -38,7 +38,6 @@ app = modal.App("restate-template-python", image=image)
 
 @app.cls(
     min_containers=1,  # the app reaches Restate Cloud from here: one container, always up
-    max_containers=1,
     secrets=[modal.Secret.from_name("restate-template")],
 )
 class App:

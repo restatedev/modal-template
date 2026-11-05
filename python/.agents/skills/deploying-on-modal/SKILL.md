@@ -140,7 +140,7 @@ docs (https://docs.restate.dev).
 
 `modal/on_modal.py` builds the image on Modal and runs
 `python -m restate connect app.__main__:app --name notes-python-v1` in one container
-(`min_containers=1`, `max_containers=1`), with its keys from the Modal secret
+(`min_containers=1`), with its keys from the Modal secret
 `restate-template`. The Modal app is `restate-template-python`. `modal` is a dev dependency
 of the project, so `uv run modal …` runs it:
 
