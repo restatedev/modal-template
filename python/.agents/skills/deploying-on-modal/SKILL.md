@@ -59,8 +59,8 @@ If ports 8080 or 9070 are taken (another Restate server, in Docker say), stop it
    (or with `RESTATE_CONNECT_KEY=…` in front instead of `--env-file`).
 3. Once per deployment name, register it: in the Cloud UI
    (https://cloud.restate.dev/to/overview?register-deployment=connect://notes-python-v1), or
-   with the CLI, signed in to Restate Cloud first (`restate cloud login`, then
-   `restate cloud env configure`; without it, the CLI talks to `localhost:9070`):
+   with the CLI, signed in to Restate Cloud first (`restate cloud login`, which also selects
+   the environment; without it, the CLI talks to `localhost:9070`):
    `npx @restatedev/restate@1.8.1-hotfix.2 deployments register connect://notes-python-v1`.
 4. Send requests from the playground
    (https://cloud.restate.dev/to/overview?servicePlayground=notes), or with the SDK's client

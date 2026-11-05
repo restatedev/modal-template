@@ -62,12 +62,11 @@ RESTATE_CONNECT_KEY=… uv run python -m restate connect app.__main__:app --name
 ```
 
 Once, [register `connect://notes-python-v1`](https://cloud.restate.dev/to/overview?register-deployment=connect://notes-python-v1)
-in the Cloud UI (the app prints this link too), or with the CLI, once it is signed in to your
-environment:
+in the Cloud UI (the app prints this link too), or with the CLI, once it is signed in
+(`cloud login` also asks which environment to use):
 
 ```sh
 npx @restatedev/restate@1.8.1-hotfix.2 cloud login
-npx @restatedev/restate@1.8.1-hotfix.2 cloud env configure
 npx @restatedev/restate@1.8.1-hotfix.2 deployments register connect://notes-python-v1
 ```
 
