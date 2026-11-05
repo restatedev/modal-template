@@ -43,6 +43,7 @@ npx @restatedev/restate@1.8.1 deployments register http://localhost:9080
 curl localhost:8080/notes/alice/add --json '"Buy milk"'
 curl localhost:8080/notes/alice/list
 curl localhost:8080/assistant/alice/chat -d 'Remind me to call the bank.'
+uv run python -m restate.agents chat assistant/alice   # or chat in the terminal, and watch its tool calls
 ```
 
 Binaries and Docker images: [Restate 1.8.1](https://github.com/restatedev/restate/releases/tag/v1.8.1).
@@ -134,7 +135,10 @@ assistant = openai.agent("assistant", system="Answer briefly.", tools=[get_weath
 To serve agents, add them to `restate.app([...])` in [`app/__main__.py`](app/__main__.py) (each brings
 along what it needs, the `signals` object), and put your model's API key (`OPENAI_API_KEY`) in the
 environment, and on Modal in its secret. Chat with one with
-`curl localhost:8080/assistant/alice/chat -d 'What is the weather in Lisbon?'`. The
+`curl localhost:8080/assistant/alice/chat -d 'What is the weather in Lisbon?'`, or from a
+terminal with the SDK's chat client, `uv run python -m restate.agents chat assistant/alice`:
+it shows each tool call as it happens, and answers an agent's waits (`/pending`,
+`/signal <name> <value>`). With `RESTATE_INGRESS_KEY` set, it talks to Restate Cloud. The
 OpenAI Agents SDK is installed already (`restate-sdk[serve,openai]` in
 [`pyproject.toml`](pyproject.toml)); for another framework, add its extra (`langgraph`,
 `pydantic-ai`, `adk`) and its model provider's package, then `uv lock`.

@@ -18,6 +18,9 @@ wait's id), and approve it::
 
 ``/send`` sends the message without waiting for the answer, which waits for
 the approval. ``{"id": "<the id>", "value": ...}`` answers one wait by its id.
+
+Or all of it from a terminal: ``uv run python -m restate.agents chat support/alice``,
+then ``/pending`` and ``/signal approval approved`` while the agent waits.
 """
 
 from datetime import timedelta

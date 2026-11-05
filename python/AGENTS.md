@@ -41,6 +41,7 @@ Run them from `python/`, this project's directory:
 uv sync
 uv run app                                          # the app, on port 9080
 uv run python -m restate serve examples.chat:app    # an example, on port 9080
+uv run python -m restate.agents chat assistant/alice   # chat with an agent from the terminal
 uv run ruff check && uv run ruff format --check && uv run pyright   # lint
 uv run ruff format                                  # format
 ```

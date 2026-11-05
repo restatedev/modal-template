@@ -12,6 +12,8 @@ retries the call and the agent picks up where it left off::
     curl localhost:8080/chatbot/alice/chat -d 'What is my name?'
     curl localhost:8080/chatbot/alice/messages   # the conversation so far
     curl localhost:8080/chatbot/alice/clear      # forget it: the next message starts anew
+
+Or chat from a terminal: ``uv run python -m restate.agents chat chatbot/alice``.
 """
 
 import restate

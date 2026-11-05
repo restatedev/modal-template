@@ -14,6 +14,10 @@ Run it with a Restate server on this machine (see README.md)::
     curl localhost:8080/assistant/alice/chat -d 'Remind me to call the bank.'
     curl localhost:8080/notes/alice/list                        # ["Buy milk", "Call the bank"]
 
+Or chat with the assistant from a terminal, and see its tool calls as they happen::
+
+    uv run python -m restate.agents chat assistant/alice
+
 The assistant needs OPENAI_API_KEY. On Modal, the same ``app`` connects to
 Restate Cloud instead (modal/on_modal.py): ``python -m restate connect app.__main__:app``.
 """
