@@ -22,10 +22,8 @@ The same `app` runs in one of three ways, and nothing in the file changes betwee
 | Modal, against Restate Cloud                   | `modal/on_modal.py` runs that same `python -m restate connect …`       | One always-on Modal container connects out |
 
 Importing `app.__main__` doesn't serve it (the `serve` is under `if __name__ == "__main__"`), so
-`python -m restate connect` takes the `app` and connects it instead. The app connects to
-Restate Cloud, rather than Restate Cloud calling Modal, on purpose: long-lived HTTP/2
-connections from Restate Cloud to Modal sometimes get stuck (see the footnote in
-`README.md`). Don't change it to a pushed deployment.
+`python -m restate connect` takes the `app` and connects it instead: the app connects out to
+Restate Cloud, rather than Restate Cloud calling Modal.
 
 Only `app/` is deployed. `tutorial/` is for reading and copying into `app/__main__.py`, and
 each module of `examples/` ends with an `app` of its own, served one at a time on this

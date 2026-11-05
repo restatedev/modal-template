@@ -88,7 +88,7 @@ async with restate.create_client() as client:  # reads RESTATE_INGRESS_KEY
 
 [`modal/on_modal.py`](modal/on_modal.py) builds the image on Modal and runs
 `python -m restate connect app.__main__:app` in one always-on container, which connects to
-Restate Cloud[^push]. Only `app/` goes into the image. Your keys come from a Modal secret, and
+Restate Cloud. Only `app/` goes into the image. Your keys come from a Modal secret, and
 `modal` is a dev dependency of this project, so `uv run modal` runs it:
 
 ```sh
@@ -101,13 +101,6 @@ Register `connect://notes-python-v1` as above. `uv run modal app logs restate-te
 follows the app. Model API keys (such as `OPENAI_API_KEY`) go in the same secret. The image
 installs the `[project] dependencies` of [`pyproject.toml`](pyproject.toml) at the versions of
 `uv.lock`, and none of its groups (`dev`, `examples`): after adding one, run `uv lock`.
-
-[^push]:
-    **Why not "push" to Modal?** We suspect an edge case with long-lived HTTP/2 connections
-    between Restate Cloud and Modal, possibly an interaction between HTTP clients and API
-    gateways or load balancers: longer-running functions sometimes get stuck. While we
-    investigate, and to save you the friction, your code connects to Restate Cloud instead
-    of Restate Cloud pushing to Modal. Push is what we want in the future.
 
 ## Agent SDK
 
