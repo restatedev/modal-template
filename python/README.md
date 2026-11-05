@@ -12,8 +12,6 @@ directory, `python/`. The TypeScript version is in [`../typescript`](../typescri
   objects, with the OpenAI Agents SDK, LangGraph, Pydantic AI and Google ADK.
 - **[Session Objects](#session-objects)** (`restate.sessions`): the Cloudflare Durable
   Objects / celld-like construct, with a SQLite database per key.
-- **[Journaled agents](#journaled-agents)** (`restate.ext`): the same frameworks made durable
-  inside plain Restate handlers, built on journaling (not session objects).
 
 All of these are part of the Restate Python SDK
 ([`restate-sdk`](https://pypi.org/project/restate-sdk/)), and they are all Restate services,
@@ -174,6 +172,12 @@ More, one per file: [`examples-agents`](https://github.com/restatedev/sdk-python
 of the Python SDK, from a basic agent per framework to agents whose tools are Restate itself,
 a person in the loop, teams of agents on different frameworks, and an agent loop of your own.
 
+To build your own harness, `restate.agents.internal` has the building blocks of the Agent
+SDK's loop (`answer_once`, `Conversation`, `run_tool`), on an `AgentObject`.
+[restatedev/agent](https://github.com/restatedev/agent) is an even more detailed reference, in
+TypeScript: steerable, concurrent agents with approvals, sandboxed code, sub-agents, schedules
+and memory.
+
 ## Session Objects
 
 A session object is a virtual object with `migrations` and a database, `ctx.db`: the
@@ -219,25 +223,3 @@ changes that happen once (05–08), agents (09–15), and an `Agent` of your own
 [`app/__main__.py`](app/__main__.py) and add its objects to `restate.app([...])` there.
 Lessons 09–16 need `OPENAI_API_KEY`.
 
-## Journaled agents
-
-`restate.ext` makes the same frameworks durable inside plain Restate services, virtual
-objects and workflows: the OpenAI Agents SDK (`restate.ext.openai`), LangChain
-(`restate.ext.langchain`), Pydantic AI (`restate.ext.pydantic`) and Google ADK
-(`restate.ext.adk`). Model calls, tool results and approvals are journaled, and on recovery
-Restate replays the journal, skipping completed steps. It does not use session objects.
-
-Pick it to add durability to an agent you run in your own handlers, next to other journaled
-steps. Pick the [Agent SDK](#agent-sdk) for a ready-made agent per key, whose conversation
-lives in its database, with handlers to chat, read the conversation, watch its progress and
-stop a turn.
-
-Start from the per-framework templates and the tour of agents in
-[restatedev/ai-examples](https://github.com/restatedev/ai-examples): `openai-agents`,
-`langchain-python`, `pydantic-ai` and `google-adk`, plus `python-restate-only` for an agent
-loop on plain Restate.
-
-To build your own harness, `restate.agents.internal` has the building blocks of the Agent
-SDK's loop (`answer_once`, `Conversation`, `run_tool`). [restatedev/agent](https://github.com/restatedev/agent)
-is an even more detailed reference, in TypeScript: steerable, concurrent agents with
-approvals, sandboxed code, sub-agents, schedules and memory.
