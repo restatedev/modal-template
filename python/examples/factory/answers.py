@@ -1,6 +1,6 @@
 """
-The planner's answer, structured: a ``Plan``, which the model replies with as
-JSON of its schema (checked against it), and the planner's handler returns.
+The planner's answer, structured: a ``Plan``. The model replies with it as JSON
+of its schema; the planner's ``plan`` handler checks it, and returns it.
 """
 
 from typing import Annotated

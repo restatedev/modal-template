@@ -2,57 +2,58 @@
 The factory's services: the agents, the planner, and the webhooks into them (see README.md).
 """
 
-import functools
 import os
+import re
 from datetime import timedelta
 from typing import Any
 
 import restate
+from pydantic import ValidationError
 from restate import sessions
-from restate.agents import Event, call, openai, pydantic_ai, subagent, webhook
+from restate.agents import Event, Tool, call, openai, pydantic_ai, subagent, webhook
 
 from examples.factory import env, github, prompts
 from examples.factory.answers import Issue, Plan
 from examples.factory.signatures import CODER, REVIEWER, TRIAGE, by_an_agent
 
-# The models: OpenAI's for triage, the planner and the reviewer, and Anthropic's for the coders.
-OPENAI_MODEL = os.environ.get("RESTATE_AGENT_MODEL", "openai/gpt-6-sol")
+# Triage, the planner and the reviewer run on OpenAI's models ($RESTATE_AGENT_MODEL, else gpt-6-sol),
+# and the coders on Anthropic's, unless CODER_MODEL says otherwise.
 CODER_MODEL = os.environ.get("CODER_MODEL", "anthropic/claude-sonnet-5-5")
 
 
-# --- The planner: a plain service, asked once, its answer a Plan --------------------------------------
+# --- The planner: an agent whose answer is a Plan ------------------------------------------------------
 
-
-@functools.cache
-def openai_client() -> Any:
-    from openai import AsyncOpenAI  # pylint: disable=import-outside-toplevel
-
-    return AsyncOpenAI()
-
-
-planner = restate.Service(
+planner = openai.agent(
     "planner",
     description="Plans the work on an issue, from its title and description: a summary, and parts to build at once",
+    system=prompts.PLANNER,
 )
 
 
-@planner.handler()
-async def plan(ctx: restate.Context, issue: Issue) -> Plan:
-    """Plan the work on an issue: the model's answer checked against ``Plan``, and journaled, so it is asked once."""
+def _json_in(answer: str) -> str:
+    """The JSON object in the model's answer, without the Markdown fence it may come in."""
+    found = re.search(r"\{.*\}", answer, re.DOTALL)
+    return found[0] if found else answer
 
-    async def ask() -> Plan:
-        response = await openai_client().responses.parse(
-            model=OPENAI_MODEL.removeprefix("openai/"),
-            instructions=prompts.PLANNER,
-            input=f"# {issue.title}\n\n{issue.description}",
-            text_format=Plan,
-            store=False,
-        )
-        if response.output_parsed is None:
-            raise restate.TerminalError("The model gave no plan")
-        return response.output_parsed
 
-    return await ctx.run_typed("ask the model for a plan", ask)
+@planner.handler
+async def plan(ctx: sessions.SessionContext, issue: Issue) -> Plan:
+    """Plan the work on an issue: the model's plan, checked against ``Plan``, or asked again if it doesn't fit.
+
+    ``openai.prompt`` answers each prompt once, in the planner's conversation for the issue
+    (``planner/ENG-1``): a retry gets the same answers, and doesn't ask the model again.
+    """
+    answer = await openai.prompt(ctx, f"# {issue.title}\n\n{issue.description}", system=prompts.PLANNER)
+    for _ in range(3):
+        try:
+            return Plan.model_validate_json(_json_in(answer))
+        except ValidationError as error:
+            answer = await openai.prompt(
+                ctx,
+                f"That plan doesn't fit the schema: {error}\nAnswer again, with the JSON only.",
+                system=prompts.PLANNER,
+            )
+    raise restate.TerminalError("The planner gave no plan that fits its schema")
 
 
 # --- The agents -------------------------------------------------------------------------------------
@@ -60,7 +61,6 @@ async def plan(ctx: restate.Context, issue: Issue) -> Plan:
 reviewer = openai.agent(
     "reviewer",
     description="Reviews a pull request, as pushed, and posts its review on it: approved, or the changes to make",
-    model=OPENAI_MODEL,
     system=prompts.REVIEWER,
     tools=env.review_tools(REVIEWER),
 )
@@ -68,7 +68,7 @@ reviewer = openai.agent(
 CODER_TOOLS = [*env.CODING, env.pull_request_tool(CODER), env.pull_request_comment_tool(CODER)]
 
 
-async def coder_tools(ctx: sessions.SessionContext) -> list[Any]:
+async def coder_tools(ctx: sessions.SessionContext) -> list[Tool]:
     return [*CODER_TOOLS, *await env.linear_tools(CODER)]
 
 
@@ -82,16 +82,20 @@ coder = pydantic_ai.agent(
 )
 
 
-async def triage_tools(ctx: sessions.SessionContext) -> list[Any]:
+async def triage_tools(ctx: sessions.SessionContext) -> list[Tool]:
     return [
         *await env.linear_tools(TRIAGE),
-        call(plan, description="Plan the work on an issue, from its title and description: a summary, and its parts"),
+        call(
+            plan,
+            description="Plan the work on an issue, from its title and description: a summary, and its parts",
+            key=lambda ctx: ctx.key,  # the issue's planner: planner/ENG-1
+        ),
         subagent(coder),
         subagent(reviewer),
     ]
 
 
-triage = openai.agent("triage", model=OPENAI_MODEL, system=prompts.TRIAGE, tools=triage_tools)
+triage = openai.agent("triage", system=prompts.TRIAGE, tools=triage_tools)
 
 
 # --- The webhooks into them ------------------------------------------------------------------------

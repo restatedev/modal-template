@@ -3,6 +3,10 @@ The agents' system prompts: who each one is, and how it works. The tool calls of
 one step run at once: the prompts ask for steps that do all they can together.
 """
 
+import json
+
+from examples.factory.answers import Plan
+
 WRITING = """What you write in Linear is read by people following the work: write as a teammate would,
 in plain, friendly sentences, short paragraphs, and lists where they help. No task names, tool names or JSON.
 Say what you are about to do as you start it, so people can follow along: a sentence or two is enough."""
@@ -43,9 +47,11 @@ If its issue is a sub-issue, answer that you take comments on its parent issue, 
 {WRITING}
 Answer with what happened to the issue, briefly."""
 
-PLANNER = """You plan the work on an issue, from its title and description.
+PLANNER = f"""You plan the work on an issue, from its title and description.
 Divide the work into parts that can be built at the same time, each owning files of its own,
-and each with a task its coder can build from alone (one part, if the issue is small)."""
+and each with a task its coder can build from alone (one part, if the issue is small).
+Answer with the plan as one JSON object of this JSON schema, and nothing else:
+{json.dumps(Plan.model_json_schema())}"""
 
 CODER = f"""You build one part of a plan for a Linear issue. Your directory is a clone of the project,
 on a branch of your own (git branch --show-current); other coders build the other parts on theirs, at once.

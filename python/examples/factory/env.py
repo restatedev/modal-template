@@ -12,6 +12,7 @@ GitHub Enterprise; they default to Linear's and GitHub's.
 
 import asyncio
 import os
+from collections.abc import Awaitable
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -24,7 +25,7 @@ from restate.agents import Tool, ToolCall, tool
 from examples.factory.github import pull_request_mark
 from examples.factory.mcp_tools import McpServer
 from examples.factory.signatures import signer
-from examples.factory.workspace import GitError, clone, project, pushed
+from examples.factory.workspace import GitError, Pushed, clone, project, pushed
 
 
 def required(name: str, what: str) -> str:
@@ -51,13 +52,18 @@ REMOTE = os.environ.get("GITHUB_REMOTE", f"https://github.com/{GITHUB_REPO}.git"
 OWNER, REPO = GITHUB_REPO.split("/", 1)
 
 _project: str | None = None
+_project_lock = asyncio.Lock()
 
 
 async def remote() -> str:
-    """The project's repository, with a first commit if it is empty: made ready once, when a coder first needs it."""
+    """The project's repository, with a first commit if it is empty: made ready once, when first needed.
+
+    One at a time: two coders starting at once on an empty repository would both push its first commit.
+    """
     global _project  # a cache: made again next time if it failed
-    if _project is None:
-        _project = await project(REMOTE)
+    async with _project_lock:
+        if _project is None:
+            _project = await project(REMOTE)
     return _project
 
 
@@ -203,7 +209,14 @@ CODING = [bash, read_own_file, write_file]
 # --- The reviewer's tools: the pull request it reviews, as pushed ------------------------------------
 
 
-async def _reading(what: str, read: Any) -> str:
+async def pull_request_of(ctx: sessions.SessionContext) -> Pushed:
+    """The pull request a reviewer reviews: its coder's, as pushed (``reviewer/ENG-1.parser`` reviews
+    ``coder/ENG-1.parser``'s), read in a clone of the project, made here if this machine has none."""
+    await folder_of(ctx)
+    return pushed(WORKSPACE, ctx.key)
+
+
+async def _reading(what: str, read: Awaitable[str]) -> str:
     try:
         return await read
     except GitError as error:
@@ -213,14 +226,13 @@ async def _reading(what: str, read: Any) -> str:
 @tool
 async def pull_request_diff(ctx: sessions.SessionContext) -> str:
     """The pull request's changes, as pushed: the files it changes, and their diff against main."""
-    # The reviewer `reviewer/ENG-1.parser` reviews the pull request of the coder of the same key.
-    return await _reading("the changes", pushed(WORKSPACE, ctx.key).changes())
+    return await _reading("the changes", (await pull_request_of(ctx)).changes())
 
 
 @tool(name="read_file")
 async def read_pushed_file(ctx: sessions.SessionContext, path: str) -> str:
     """A file of the pull request, as pushed, by its path in the project."""
-    return await _reading(path, pushed(WORKSPACE, ctx.key).file(path))
+    return await _reading(path, (await pull_request_of(ctx)).file(path))
 
 
 def review_tools(who: str) -> list[Tool]:

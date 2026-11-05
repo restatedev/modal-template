@@ -5,8 +5,8 @@ take it from there:
 
 1. A triage agent (OpenAI Agents SDK) decides whether the issue is ready to
    build, and leads the work.
-2. It asks the planner, a plain Restate service, for a plan. The plan comes
-   back structured: a summary, and parts that can be built at once.
+2. It asks the planner (OpenAI Agents SDK) for a plan. The plan comes back
+   structured: a summary, and parts that can be built at once.
 3. Triage makes a Linear sub-issue for each part, and hands every part to a
    coder (Pydantic AI, on Claude) of its own, all at once. Each coder works on
    a git branch of its own, and opens a pull request of it on GitHub.
@@ -27,7 +27,7 @@ along the team's workflow, and comment on them, through Linear's MCP server.
      ▲                                                     │  (OpenAI Agents SDK)
      │ issues, sub-issues, comments (Linear's MCP server)  │
      └─────────────────────────────────────────────────────┤
-                                                           ├── call ─────▶ planner.plan: a Plan, journaled
+                                                           ├── call ─────▶ planner/ENG-1 plan: a Plan, checked
                                                            ├── subagent ─▶ coder/ENG-1.parser   (Pydantic AI)
                                                            ├── subagent ─▶ coder/ENG-1.history
                                                            └── subagent ─▶ reviewer/ENG-1.parser, …
@@ -54,7 +54,7 @@ to know, and moves one that is nothing to build to **Canceled**.
 
 | File                                 | What                                                                                                   |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| [`factory.py`](factory.py)           | The webhooks, the planner, and the agents: triage, the parent, with coders and a reviewer as subagents |
+| [`factory.py`](factory.py)           | The webhooks, and the agents: triage, the parent, with the planner, coders and a reviewer              |
 | [`env.py`](env.py)                   | The environment, and the tools on it: Linear's (signed), GitHub's pull requests, the coder's and reviewer's |
 | [`answers.py`](answers.py)           | The planner's structured answer: the `Plan`, and the `Issue` it plans from                             |
 | [`prompts.py`](prompts.py)           | The agents' system prompts: triage's, the planner's, a coder's, the reviewer's                         |
@@ -73,10 +73,12 @@ to know, and moves one that is nothing to build to **Canceled**.
   rather than a second one. With a secret, a webhook that Linear did not sign is refused
   (401). The `github` webhook works the same way for the coders, each event going to the
   coder of its pull request, with only what it needs of the event (`message`).
-- **Structured output, exactly once.** The planner is a plain Restate service, not an agent:
-  one model call, `responses.parse(text_format=Plan)`, checked against `Plan` and journaled
-  with `ctx.run_typed`, so a retry returns the same plan. Triage calls it as a tool
-  (`call(plan)`), and gets the plan as JSON.
+- **A structured answer from an agent.** The planner is an agent with a handler of its own,
+  `plan`, that takes an `Issue` and returns a `Plan`. It asks the model with `openai.prompt`,
+  in the planner's conversation for the issue (`planner/ENG-1`), checks the JSON it answers
+  against `Plan`, and asks again, with the error, if it doesn't fit. Each prompt is answered
+  once, so a retry gets the same plan without asking the model again. Triage calls it as a
+  tool (`call(plan, key=…)`), and gets the plan as JSON.
 - **Agents on two frameworks, in one conversation.** Triage and the reviewer run on the
   OpenAI Agents SDK, the coders on Pydantic AI. Triage takes a coder's pull request to the
   reviewer, and the review back to the coder, round by round, each in the same task every
@@ -156,6 +158,7 @@ parts triage names:
 ```sh
 curl localhost:8080/triage/ENG-1/status            # what triage is doing now
 curl localhost:8080/triage/ENG-1/messages          # triage's conversation, with its tool calls
+curl localhost:8080/planner/ENG-1/messages         # the planner's: the issue, and the plan
 curl localhost:8080/coder/ENG-1.parser/messages    # a coder's, of a part triage named "parser"
 curl localhost:8080/reviewer/ENG-1.parser/messages # its reviewer's: the reviews, round by round
 uv run python -m restate.agents chat triage/ENG-1  # or follow triage, and talk to it, from a terminal

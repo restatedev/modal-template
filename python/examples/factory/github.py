@@ -35,9 +35,8 @@ def coder_of(event: Event) -> str | None:
     """
     action = event.get("action")
     issue: dict[str, Any] = event.get("issue") or {}
-    pull_request = event.get("pull_request") or (
-        issue if issue.get("pull_request") else None
-    )  # a comment's issue may be a pull request
+    # A comment on a pull request comes as a comment on an issue: one that is a pull request.
+    pull_request = event.get("pull_request") or (issue if issue.get("pull_request") else None)
     comment: dict[str, Any] | None = event.get("comment")
     review: dict[str, Any] | None = event.get("review")
     run: dict[str, Any] | None = event.get("workflow_run")
@@ -64,8 +63,12 @@ def what_happened(event: Event) -> dict[str, Any]:
     comment: dict[str, Any] | None = event.get("comment")
     review: dict[str, Any] | None = event.get("review")
     run: dict[str, Any] = event.get("workflow_run") or {}
-    found = event.get("pull_request") or event.get("issue") or next(iter(run.get("pull_requests") or []), None)
-    pull_request = found and {"number": found.get("number"), "title": found.get("title"), "url": found.get("html_url")}
+    found: dict[str, Any] | None = (
+        event.get("pull_request") or event.get("issue") or next(iter(run.get("pull_requests") or []), None)
+    )
+    pull_request = (
+        {"number": found.get("number"), "title": found.get("title"), "url": found.get("html_url")} if found else None
+    )
     sender: dict[str, Any] = event.get("sender") or {}
     by = sender.get("login")
     if review:
