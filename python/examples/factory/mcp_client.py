@@ -1,7 +1,7 @@
 """
-An MCP server's tools, as tools for any agent: each of its tools, with the input
-its JSON schema describes, called on the server when the model calls it. An
-error the server answers with is the tool's answer to the model.
+A client of an MCP server, which hands its tools to any agent: each with
+the input its JSON schema describes, called on the server when the model calls
+it. An error the server answers with is the tool's answer to the model.
 
 A tool call is stored once it is done, with the agent's conversation: a crash
 makes again only a call that had not finished, which the server then sees twice
@@ -20,8 +20,8 @@ from mcp.client.streamable_http import streamable_http_client
 from restate.agents import Tool, ToolCall
 
 
-class McpServer:
-    """The MCP server at ``url``: its tools, asked for the first time they are needed, and its tool calls."""
+class McpClient:
+    """A client of the MCP server at ``url``: its tools, asked for the first time they are needed, and its tool calls."""
 
     def __init__(self, url: str, headers: dict[str, str] | None = None) -> None:
         self.url = url

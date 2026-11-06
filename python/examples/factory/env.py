@@ -23,7 +23,7 @@ from restate import sessions
 from restate.agents import Tool, ToolCall, tool
 
 from examples.factory.github import pull_request_mark
-from examples.factory.mcp_tools import McpServer
+from examples.factory.mcp_client import McpClient
 from examples.factory.signatures import signer
 from examples.factory.workspace import GitError, Pushed, clone, project, pushed
 
@@ -42,10 +42,10 @@ GITHUB_TOKEN = required("GITHUB_TOKEN", f"a token that can push to {GITHUB_REPO}
 GITHUB_WEBHOOK_SECRET = os.environ.get("GITHUB_WEBHOOK_SECRET")
 WORKSPACE = os.environ.get("WORKSPACE", "/tmp/restate-factory")
 
-linear = McpServer(
+linear = McpClient(
     os.environ.get("LINEAR_MCP_URL", "https://mcp.linear.app/mcp"), {"authorization": f"Bearer {LINEAR_API_KEY}"}
 )
-github = McpServer(
+github = McpClient(
     os.environ.get("GITHUB_MCP_URL", "https://api.githubcopilot.com/mcp/"), {"authorization": f"Bearer {GITHUB_TOKEN}"}
 )
 REMOTE = os.environ.get("GITHUB_REMOTE", f"https://github.com/{GITHUB_REPO}.git")

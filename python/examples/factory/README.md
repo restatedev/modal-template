@@ -58,7 +58,7 @@ to know, and moves one that is nothing to build to **Canceled**.
 | [`env.py`](env.py)                   | The environment, and the tools on it: Linear's (signed), GitHub's pull requests, the coder's and reviewer's |
 | [`answers.py`](answers.py)           | The planner's structured answer: the `Plan`, and the `Issue` it plans from                             |
 | [`prompts.py`](prompts.py)           | The agents' system prompts: triage's, the planner's, a coder's, the reviewer's                         |
-| [`mcp_tools.py`](mcp_tools.py)       | An MCP server's tools as tools for any agent, asked for when an agent first needs them                 |
+| [`mcp_client.py`](mcp_client.py)     | A client of an MCP server, which hands its tools to any agent, asked for when first needed             |
 | [`github.py`](github.py)             | GitHub's webhook: the coder an event on a pull request is for, and what of the event it reads          |
 | [`signatures.py`](signatures.py)     | The agents' signatures on what they write, and how the factory tells their comments from people's      |
 | [`workspace.py`](workspace.py)       | The coders' clones of the project, each on its own branch; a first commit for an empty project         |
@@ -90,7 +90,7 @@ to know, and moves one that is nothing to build to **Canceled**.
 - **Tools of your own for a coding agent.** The coders work in a clone of the project with
   three tools (`bash`, `read_file`, `write_file`), confined to the clone. Their commands
   don't see the factory's other keys.
-- **MCP tools in any agent.** `McpServer(url).tools()` turns an MCP server's tools into
+- **MCP tools in any agent.** `McpClient(url).tools()` turns an MCP server's tools into
   `restate.agents` tools, which both frameworks take. A tool call is stored once it is done,
   so a crash makes again only one that had not finished (moving an issue twice is harmless;
   a comment may show twice).
