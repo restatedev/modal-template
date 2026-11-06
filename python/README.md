@@ -175,8 +175,14 @@ npx @restatedev/restate deployments register --force --yes http://localhost:9080
 | [`memory`](examples/memory.py)                   | An agent with a table of its own: tools that write `ctx.db`, and a view     |
 | [`support`](examples/support.py)                 | Restate as tools: a service, a person's approval (a signal), and a workflow |
 
-They need `OPENAI_API_KEY`. LangGraph and `langchain-openai` are in the `examples` group of
-`pyproject.toml`, which `uv sync` installs and the Modal image doesn't. Any example connects
+**Advanced:** [`examples/factory`](examples/factory), a software factory. A new Linear issue,
+through a webhook, starts a triage agent, which has a planner plan it, a coder per part
+build it and open a pull request on GitHub, and a reviewer review each one, round by round.
+It runs on your Linear workspace and a GitHub repository: its README shows how to set it up.
+
+They need `OPENAI_API_KEY`. Their dependencies (LangGraph, `langchain-openai`, and the
+factory's Pydantic AI and MCP) are in the `examples` group of `pyproject.toml`, which `uv sync`
+installs and the Modal image doesn't. Any example connects
 to Restate Cloud too: `uv run python -m restate connect examples.chat:app --name chat-python-v1`.
 
 More, one per file: [`examples-agents`](https://github.com/restatedev/sdk-python/tree/main/examples-agents)
