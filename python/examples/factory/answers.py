@@ -1,11 +1,16 @@
 """
-The planner's answer, structured: a ``Plan``. The model replies with it as JSON
-of its schema; the planner's ``plan`` handler checks it, and returns it.
+The planner's answer, structured: a ``Plan``, and how to ask a model for one.
+The model replies with JSON of its schema (the planner's prompt has it);
+``ask_for`` checks it, and asks again, with the error, if it doesn't fit.
 """
 
+import re
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+import restate
+from pydantic import BaseModel, Field, ValidationError
+from restate import sessions
+from restate.agents import openai
 
 
 class Issue(BaseModel):
@@ -32,3 +37,26 @@ class Plan(BaseModel):
         str, Field(description="What will be built, and how its parts fit together: a short paragraph, for people")
     ]
     parts: Annotated[list[Part], Field(min_length=1, description="Parts that can be built at the same time")]
+
+
+async def ask_for[T: BaseModel](answer: type[T], ctx: sessions.SessionContext, prompt: str, *, system: str) -> T:
+    """The model's answer to ``prompt``, as an ``answer``: its JSON, checked, or asked again (three times at most).
+
+    ``openai.prompt`` answers each prompt once, in the agent's conversation: a retry of the handler gets the
+    same answers, and doesn't ask the model again.
+    """
+    reply = await openai.prompt(ctx, prompt, system=system)
+    for _ in range(3):
+        try:
+            return answer.model_validate_json(_json_in(reply))
+        except ValidationError as error:
+            reply = await openai.prompt(
+                ctx, f"That doesn't fit the schema: {error}\nAnswer again, with the JSON only.", system=system
+            )
+    raise restate.TerminalError(f"The model gave no answer that fits {answer.__name__}")
+
+
+def _json_in(reply: str) -> str:
+    """The JSON object in the model's reply, without the Markdown fence it may come in."""
+    found = re.search(r"\{.*\}", reply, re.DOTALL)
+    return found[0] if found else reply

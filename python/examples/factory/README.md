@@ -54,12 +54,14 @@ to know, and moves one that is nothing to build to **Canceled**.
 
 | File                                 | What                                                                                                   |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| [`factory.py`](factory.py)           | The webhooks, and the agents: triage, the parent, with the planner, coders and a reviewer              |
-| [`env.py`](env.py)                   | The environment, and the tools on it: Linear's (signed), GitHub's pull requests, the coder's and reviewer's |
-| [`answers.py`](answers.py)           | The planner's structured answer: the `Plan`, and the `Issue` it plans from                             |
+| [`factory.py`](factory.py)           | The agents, each with its tools and handlers: triage, the planner, a coder, a reviewer; the webhooks   |
+| [`tools.py`](tools.py)               | The agents' tools: Linear's (signed), GitHub's pull requests, a coder's clone, a reviewer's diff        |
+| [`env.py`](env.py)                   | The environment: the keys, Linear's and GitHub's MCP servers, the project's repository                 |
+| [`answers.py`](answers.py)           | The planner's structured answer, the `Plan`, and asking a model for JSON that fits it                  |
 | [`prompts.py`](prompts.py)           | The agents' system prompts: triage's, the planner's, a coder's, the reviewer's                         |
-| [`mcp_client.py`](mcp_client.py)     | A client of an MCP server, which hands its tools to any agent, asked for when first needed             |
+| [`linear.py`](linear.py)             | Linear's webhook: the issue an event is for                                                            |
 | [`github.py`](github.py)             | GitHub's webhook: the coder an event on a pull request is for, and what of the event it reads          |
+| [`mcp_client.py`](mcp_client.py)     | A client of an MCP server, which hands its tools to any agent, asked for when first needed             |
 | [`signatures.py`](signatures.py)     | The agents' signatures on what they write, and how the factory tells their comments from people's      |
 | [`workspace.py`](workspace.py)       | The coders' clones of the project, each on its own branch; a first commit for an empty project         |
 
@@ -74,11 +76,11 @@ to know, and moves one that is nothing to build to **Canceled**.
   (401). The `github` webhook works the same way for the coders, each event going to the
   coder of its pull request, with only what it needs of the event (`message`).
 - **A structured answer from an agent.** The planner is an agent with a handler of its own,
-  `plan`, that takes an `Issue` and returns a `Plan`. It asks the model with `openai.prompt`,
-  in the planner's conversation for the issue (`planner/ENG-1`), checks the JSON it answers
-  against `Plan`, and asks again, with the error, if it doesn't fit. Each prompt is answered
-  once, so a retry gets the same plan without asking the model again. Triage calls it as a
-  tool (`call(plan, key=…)`), and gets the plan as JSON.
+  `plan`, that takes an `Issue` and returns a `Plan` (`ask_for`, in answers.py). It asks the
+  model with `openai.prompt`, in the planner's conversation for the issue (`planner/ENG-1`),
+  checks the JSON it answers against `Plan`, and asks again, with the error, if it doesn't
+  fit. Each prompt is answered once, so a retry gets the same plan without asking the model
+  again. Triage calls it as a tool (`call(plan, key=…)`), and gets the plan as JSON.
 - **Agents on two frameworks, in one conversation.** Triage and the reviewer run on the
   OpenAI Agents SDK, the coders on Pydantic AI. Triage takes a coder's pull request to the
   reviewer, and the review back to the coder, round by round, each in the same task every
