@@ -112,7 +112,8 @@ to the turn being answered instead ("use Celsius", "skip Friday"):
   your own).
 - **Either way it is answered once.** Send it with an idempotency key, so that a request
   sent again is the same message. `steer` answers `{ id, turn }`: the message's id, and the
-  turn that holds it, or `turn: null`. A message the turn took shares its fate: stopped,
+  turn that holds it, or `turn: null`. A `turn` is no promise: if that turn writes its answer
+  before another step, the message is answered right after it. A message the turn took shares its fate: stopped,
   failed or refused with it, it is not answered again; one it hadn't taken yet is answered
   after it.
 - **A step comes only once all tool calls returned**: a tool that waits a day for an

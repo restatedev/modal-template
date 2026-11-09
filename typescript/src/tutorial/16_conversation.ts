@@ -3,10 +3,13 @@
  *
  * `pi.chat()` answers messages. For anything else you want to do with the
  * conversation, `pi.withPi(ctx, options, work)` hands `work` the same
- * conversation `chat` uses: here, a handler that compacts it (the model
- * summarizes it, so later turns send fewer tokens), and one that starts it
- * over, keeping only a note you give it. (It is `shorten`, not `compact`:
- * `compact` is a handler every agent has, as are `steer`, `stop` and `clear`.)
+ * conversation `chat` uses: here, a handler that compacts it, and one that
+ * starts it over, keeping only a note you give it. Compacting has the model
+ * summarize all but the latest part of the conversation (about its last
+ * 20,000 tokens, which pi keeps as they are), so that later turns send fewer
+ * tokens: a conversation shorter than that, like the one below, stays as it
+ * is. (The handler is `shorten`: `compact` is a name every agent keeps for
+ * itself, as it does `steer`, `stop` and `clear`.)
  *
  * Both are handlers of the wallet, so they wait for the message being
  * answered, and run one at a time with the messages. A crash runs them
@@ -17,8 +20,8 @@
  * shows every message and answer, as it was.
  *
  *   curl localhost:8080/wallet16/alice/chat -d 'I am saving up for a bike, 600, by June.'
- *   curl localhost:8080/wallet16/alice/shorten                                # shorter, same memory
- *   curl localhost:8080/wallet16/alice/chat -d 'What am I saving for?'        # still the bike
+ *   curl localhost:8080/wallet16/alice/shorten                                # too short to shorten yet
+ *   curl localhost:8080/wallet16/alice/chat -d 'What am I saving for?'        # the bike
  *   curl localhost:8080/wallet16/alice/startOver --json '"Alice now saves for a laptop."'
  *   curl localhost:8080/wallet16/alice/chat -d 'What am I saving for?'        # the laptop
  *   curl localhost:8080/wallet16/alice/messages                               # all of it, the bike too

@@ -57,7 +57,8 @@ const assistant = pi.agent({ name: 'assistant', system: 'Answer briefly.', tools
 - `withPi(ctx, options, work)` runs `work({ prompt, conversation, context, harness })` with
   pi-durable's Harness: `prompt(text)` answers once; `(await conversation())` is the
   conversation, with pi-durable's own API (`compact`, `reset`, `entries`, …). It changes what
-  the model sees, not `messages`. Name such handlers otherwise than `compact`, which every
+  the model sees, not `messages`. pi's `compact` summarizes what is older than the latest
+  ~20,000 tokens, which it keeps as they are: a shorter conversation stays as it is. Name such handlers otherwise than `compact`, which every
   agent has (tutorial lesson 16):
 
 ```ts
